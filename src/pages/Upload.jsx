@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
+ // note: a tool that safely translates local Windows paths (like C:\...) into secure URLs
+ // so now the "displayImagePreviews" will not show errors
 
 import LoaderModal from "../components/LoaderModal.jsx"
 import Toast from "../components/Toast.jsx"
@@ -50,79 +54,57 @@ const Upload = () => {
 
   // HELPER FUNCTIONS
 
-  // checks for dups + remove, check max limit, creates image previews
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const existingFilenames = selectedFiles.map(f => f.name);
 
-    // removes duplicate images
-    const uniqueFiles = files.filter(file => {
-      if (existingFilenames.includes(file.name)) {
-        
-        setErrorMessage(`Duplicate file ignored: ${file.name}`);
-        setMessageType('warn')
-        
-        return false;
-      }
-      return true;
-    });
+  const handleBrowseClick = async () => {
+    
+    try {
+      // 1- open file picker
+      const filePaths = await invoke('open_file_picker');
 
-    // Checks if there are duplicate images uploaded
-    if (uniqueFiles.length < files.length) {
-      const duplicateCount = files.length - uniqueFiles.length;
-      
-      setErrorMessage(`${duplicateCount} duplicate file(s) ignored`);
-      setMessageType('warn')
-      
-    }
+      // 2- check if user clicked 'cancel'
+      if (!filePaths || filePaths.length === 0) { return };
 
-    // Limit to 5 files
-    const availableSlots = maxImagesCount - selectedFiles.length;
-    if (uniqueFiles.length > availableSlots) {
-      alert(`You can only upload ${availableSlots} more image(s). Total limit is ${maxImagesCount}.`);
-      return;
-    }
+      const existingFilenames = selectedFiles.map(f => f.name);
+      const newFiles = [];
 
-    // To create preview URLs for the images with validation
-    const newFiles = uniqueFiles.map(file => {
+      // 3- process the returned files from rust part
+      for (const path of filePaths) {
+        // extract the filename only
+        const name = path.split(/[/\\]/).pop();
 
-      if (!file.type.startsWith('image/')) {
-        console.warn(`${file.name} is not a valid image file`);
-        return null;
-      }
-      
-      const isRenderable = file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp";
-      
-      try {
-        return {
-          file: file,
-          name: file.name,
-          preview: isRenderable ? URL.createObjectURL(file) : null,
+        // handle dups
+        if (existingFilenames.includes(name)) {
+          setErrorMessage(`Duplicate file ignored: ${name}`);
+          setMessageType('warn');
+          continue;
+        }
+
+        // 4- convert the real path to a displayable URL for the UI
+        const previewUrl = convertFileSrc(path);
+
+        newFiles.push({
+          file: path,
+          name: name,
+          preview: previewUrl,
           isValid: true
-        };
-      } catch (error) {
-        setErrorMessage(`Failed to create preview for ${file.name}: ${error} `)
-        setMessageType('warn')
-        
-        return {
-          file: file,
-          name: file.name,
-          preview: null,
-          isValid: false
-        };
+        });
+      }
+      
+      // 5- image limit
+      const availableSlots = maxImagesCount - selectedFiles.length;
+      if (newFiles.length > availableSlots) {
+        alert(`You can only upload ${availableSlots} more image(s). Total limit is ${maxImagesCount}.`);
+        const allowedFiles = newFiles.slice(0, availableSlots);
+        setSelectedFiles(prev => [...prev, ...allowedFiles]);
+      } else {
+        setSelectedFiles(prev => [...prev, ...newFiles]);
       }
 
-    }).filter(Boolean);
-
-    setSelectedFiles(prev => [...prev, ...newFiles]);
-  };
-
-  // REMOTE CONTROL:
-  // The actual <input type="file"> is hidden because it is ugly
-  // When the user clicks the "browse" button, this function
-  // finds the hidden input by its ID and simulates a click on it
-  const handleBrowseClick = () => {
-    document.getElementById('file-input').click();
+    } catch (err) {
+      setErrorMessage(`Failed to open file picker: ${err}`);
+      setMessageType('error');
+    }
+    
   };
 
   // helper function to remove files after click x icon
@@ -217,26 +199,19 @@ const Upload = () => {
         </p>
         
         {/* Drag and drop area*/}
-        <label
-          htmlFor="file-input"
-          className="bg-[#fafbff] relative flex flex-col justify-center items-center py-10 px-6 mt-[2.1875rem] rounded-xl border-2 border-dashed border-[rgb(100,149,237)] cursor-pointer transition-all duration-300 hover:bg-[rgba(100,149,237,0.05)] hover:border-[rgb(65,105,225)] hover:shadow-[0_4px_12px_rgba(100,149,237,0.15)]"
+        <button
+          type="button"
+          onClick={handleBrowseClick}
+          disabled={selectedFiles.length >= maxImagesCount}
+          className="w-full bg-[#fafbff] relative flex flex-col justify-center items-center py-10 px-6 mt-[2.1875rem] rounded-xl border-2 border-dashed border-[rgb(100,149,237)] cursor-pointer transition-all duration-300 hover:bg-[rgba(100,149,237,0.05)] hover:border-[rgb(65,105,225)] hover:shadow-[0_4px_12px_rgba(100,149,237,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex flex-col items-center gap-2.5 pointer-events-none">
             <UploadIcon/>
             <span className="text-[#555] text-base font-semibold text-center">
-              Drag & drop your files here
+              Click to select patient scans
             </span>
           </div>
-          <input
-            type="file"
-            accept="image/*, .heic, .heif, .dng, .jpg, .jpeg, .png"
-            multiple
-            id="file-input"
-            className="hidden"
-            onChange={handleFileChange}
-            disabled={selectedFiles.length >= maxImagesCount}
-          />
-        </label>
+        </button>
         
         {/* Browse button and file status */}
         <div className="flex items-center gap-3 mt-4">
