@@ -8,8 +8,11 @@ async fn open_file_picker(app: tauri::AppHandle) -> Result<Vec<String>, String> 
     let file_paths = app.dialog().file()
         .add_filter("Images", &["png", "jpg", "jpeg", "heic", "heif", "dng"])
         .set_title("Select patient scansheets")
-        .blocking_pick_files();
+        .blocking_pick_files(); // without this, the app crashes
+        // the purpose of it:
+        // it freezes all code execution right here until the user either picks a file or hits Cancel
 
+        
     // 2- Check what the user selected
     match file_paths {
         Some(paths) => {
