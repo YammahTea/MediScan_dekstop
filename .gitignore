@@ -1,1 +1,9 @@
 mediscan-py-engine/models/
+mediscan-py-engine/venv/
+mediscan-py-engine/.venv
+
+*.pt
+.vscode
+
+.env
+*.pem
