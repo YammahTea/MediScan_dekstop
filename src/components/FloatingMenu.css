@@ -1,0 +1,163 @@
+.wrapper {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    z-index: 1000;
+
+    --black: #000000;
+    --ch-black: #141414;
+    --eer-black: #1b1b1b;
+    --night-rider: #2e2e2e;
+    --white: #ffffff;
+    --af-white: #f3f3f3;
+    --ch-white: #e1e1e1;
+
+    --navy-blue: #1e3a5f;
+    --scrub-blue: #2c5f7c;
+    --light-scrub: #4a7c9e;
+}
+
+.circle {
+    display: block;
+    position: relative;
+    padding: 0;
+    z-index: 98;
+    margin: 0 auto;
+    -webkit-box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    height: 60px;
+    width: 60px;
+    background-color: var(--white);
+    transition: 0.2s;
+    text-align: center;
+}
+
+.circle:active {
+    transform: scale(0.9);
+    box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.3);
+}
+
+.circle:hover {
+    cursor: pointer;
+    background-color: var(--af-white);
+    box-shadow: 0 8px 15px 0 rgba(0, 0, 0, 0.3);
+}
+
+.circle .svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-left: -15px;
+    margin-top: -15px;
+    width: 30px;
+    height: 30px;
+    transition: 0.5s;
+    transform: rotate(180deg);
+}
+
+.circle svg image {
+    filter: brightness(50%);
+}
+
+.circle svg path {
+    stroke: var(--navy-blue);
+}
+
+.sub-circle {
+    z-index: 0;
+    position: absolute;
+    height: 40px;
+    width: 40px;
+    overflow: hidden;
+    border-radius: 50%;
+    transition: 0.3s;
+    transform: scale(0.5);
+    opacity: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.sub-circle label {
+    background-color: var(--af-white);
+    display: block;
+    color: var(--navy-blue);
+    width: 100%;
+    height: 100%;
+    line-height: 40px;
+    transition: .5s;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sub-circle label svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--navy-blue)
+}
+
+.sub-circle label:hover {
+    cursor: pointer;
+    background-color: var(--ch-white);
+}
+
+.subs {
+    left: -20px;
+    top: -50px;
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    z-index: 0;
+    margin: 0 auto;
+    position: relative;
+}
+
+.hidden-sub-trigger {
+    display: none;
+}
+
+.hidden-sub-trigger:checked ~ label {
+    background-color: var(--white);
+}
+
+.hidden-trigger {
+    display: none;
+}
+
+.hidden-trigger:checked ~ .circle {
+    transform: scale(0.9);
+    cursor: pointer;
+    background-color: var(--white);
+    box-shadow: 0 8px 15px 0 rgba(0, 0, 0, 0.1);
+}
+
+.hidden-trigger:checked ~ .circle .svg {
+    transform: rotate(45deg);
+}
+
+/* Top circle - positioned above */
+.hidden-trigger:checked ~ .subs button:nth-of-type(1) {
+    transform: translate(0px, -80px) scale(1);
+    opacity: 1;
+    transition: 0.2s;
+}
+
+/* Bottom-left circle - positioned to the left */
+.hidden-trigger:checked ~ .subs button:nth-of-type(2) {
+    transform: translate(-80px, 0px) scale(1);
+    opacity: 1;
+    transition: 0.4s;
+}
+
+/* Top-left circle - positioned diagonally up-left */
+.hidden-trigger:checked ~ .subs button:nth-of-type(3) {
+    transform: translate(-60px, -60px) scale(1);
+    opacity: 1;
+    transition: 0.6s;
+}
