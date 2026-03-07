@@ -249,6 +249,9 @@ const Upload = () => {
           </div>
         </button>
         
+
+        {/* DOESNT WORK */}
+        {/* TODO: FIX Image preivew*/}
         {/* Image previews */}
         {selectedFiles.length > 0 && (
           <div className="mt-6 grid grid-cols-5 gap-2">
