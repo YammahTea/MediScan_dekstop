@@ -164,6 +164,12 @@ def save_data(patient_data):
 
     return file_path
 
+# --- NOTE: THE CHILD PROCESS PATTERN ---
+# This script does NOT run as an imported module or a web server
+# It runs as an isolated background process managed by Rust
+# Rust acts like a user typing in a hidden terminal, passing local image paths via sys.argv
+# it prints a formatted string (===MEDISCAN_SUCCESS===...) at the end for Rust to intercept and read
+
 if __name__ == "__main__":
     try:
         # 1- Grab all the file paths passed from Rust
