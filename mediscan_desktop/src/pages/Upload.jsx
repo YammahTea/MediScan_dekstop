@@ -134,17 +134,19 @@ const Upload = () => {
     setErrorMessage(null);
     setMessageType(null);
     
-    const formData = new FormData();
-    for (let i=0; i<selectedFiles.length; i++) {
-      formData.append("images", selectedFiles[i].file);
-    }
+    // rust doesnt deal with formdata + in process_images, it expects a vec of file paths
+    const justThePaths = selectedFiles.map(obj => obj.file);
     
     try {
       setScanningStatus("uploading"); 
         
-      // TODO:  invoke('process_images', { files: selectedFiles })
-      await wait(2000); // Temp delay for now
+      // note: Tauri automatically translates Rust snake_case into Javascript camelCase
+      const result = await invoke('process_images', { filePaths : justThePaths });
       
+      if (result) {
+        alert(`File has been saved to ${result}`)
+      }
+
       setScanningStatus("success"); 
       await wait(2000);
       
@@ -156,7 +158,9 @@ const Upload = () => {
       setCooldownTimer(5);
         
     } catch (err) {
-      setErrorMessage("Local scan failed.");
+      console.error("Rust Backend Error:", err); // temp
+      
+      setErrorMessage(`Scan failed: ${err}`);
       setMessageType("error");
       setCooldownTimer(5);
     } finally {
