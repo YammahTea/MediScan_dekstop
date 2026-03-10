@@ -152,13 +152,37 @@ async fn merge_files(file_paths: Vec<String>) -> Result<String, String> {
 }
 
 
+#[tauri::command]
+fn open_results_folder(folder_name: String) -> Result<String, String> { 
+
+    // 1- get user's widnows profile path
+    let user_profile = env::var("USERPROFILE").map_err(|e| format!("Could not find user profile: {}", e))?;
+
+    // 2- path to mediscan_results (scanned images) directory
+    let dir_path = {
+        if folder_name == "scan" {
+            format!("{}\\Documents\\MediScan_Results", user_profile)
+        }
+        else {
+            format!("{}\\Documents\\MediScan_Merged_Reports", user_profile)
+        }
+    };
+
+    Command::new("explorer")
+        .arg(&dir_path)
+        .spawn()
+        .map_err(|e| format!("Failed to open folder: {}", e))?;
+
+    Ok("Folder opened successfully.".to_string())
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()) 
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_file_picker, process_images, merge_files]) // dont forget this, add the functions
+        .invoke_handler(tauri::generate_handler![open_file_picker, process_images, merge_files, open_results_folder]) // dont forget this, add the functions
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
