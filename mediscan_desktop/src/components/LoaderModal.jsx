@@ -3,7 +3,7 @@ import React from 'react';
 import BookAnimate from "./BookAnimate.jsx";
 import SuccessAnimate from "./SuccessAnimate.jsx";
 
-const LoaderModal = ({ isOpen, status }) => {
+const LoaderModal = ({ isOpen, status, progressMessage }) => {
   if (!isOpen) return null;
   
   return (
@@ -14,7 +14,9 @@ const LoaderModal = ({ isOpen, status }) => {
           status === 'success' ? (
             <SuccessAnimate  />
           ) : (
-            <BookAnimate />
+            <BookAnimate
+              progressText={progressMessage}
+            />
           )
         ) : null}
       </div>

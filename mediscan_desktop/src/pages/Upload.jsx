@@ -4,6 +4,8 @@ import { convertFileSrc } from '@tauri-apps/api/core';
  // note: a tool that safely translates local Windows paths (like C:\...) into secure URLs
  // so now the "displayImagePreviews" will not show errors
 
+import { listen } from '@tauri-apps/api/event';
+
 import LoaderModal from "../components/LoaderModal.jsx"
 import Toast from "../components/Toast.jsx"
 import FloatingMenu from '../components/FloatingMenu';
@@ -40,6 +42,7 @@ const Upload = () => {
   const [cooldownTimer, setCooldownTimer] = useState(0);
   
   const [scanningStatus, setScanningStatus] = useState(null); // for the loader, to show either book animation or success
+  const [progressText, setProgressText] = useState("Scanning Patients..."); // to update message in Scanning Modal (loaderModal)
 
   useEffect(() => {
     if (cooldownTimer > 0) {
@@ -139,15 +142,24 @@ const Upload = () => {
     
     try {
       setScanningStatus("uploading"); 
-        
+      setProgressText("Loading up scanning models..."); // Initial message for modal
+      
+      // handles updating progress messages coming from python 
+      const unlisten = await listen('scan-progress', (event) => {
+        setProgressText(event.payload);
+      });
+
       // note: Tauri automatically translates Rust snake_case into Javascript camelCase
       const result = await invoke('process_images', { filePaths : justThePaths });
       
+      unlisten();
+
       if (result) {
         alert(`File has been saved to ${result}`)
       }
 
       setScanningStatus("success"); 
+      setProgressText("Scan Complete!");
       await wait(2000);
       
       // Clear UI
@@ -179,6 +191,7 @@ const Upload = () => {
       <LoaderModal
         isOpen={isSubmitting}
         status={scanningStatus}
+        progressMessage={progressText}
       />
       
       {/*So it doesnt appear while scanning */}

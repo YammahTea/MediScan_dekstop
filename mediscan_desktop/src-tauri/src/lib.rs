@@ -1,5 +1,7 @@
 use tauri_plugin_dialog::DialogExt;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader}; // for reading line by line
+use tauri::Emitter;
 use std::env;
 
 // remember: this macro exposes the function to the React frontend
@@ -40,47 +42,75 @@ async fn open_file_picker(app: tauri::AppHandle, file_type: String) -> Result<Ve
 
 #[tauri::command]
 // result is the message in "pipeline.py", the save file happens inside pipeline.py
-async fn process_images(file_paths: Vec<String>) -> Result<String, String> {
+async fn process_images(app: tauri::AppHandle, file_paths: Vec<String>) -> Result<String, String> {
 
+    // 1- Get the directories  
     // THIS TO AVOID WINDOWS BS WITH  BACKSLASHES 
-    // 1- Get the current absolute directory (mediscan-desktop)
+    // Gets the current absolute directory (mediscan-desktop)
     let current_dir = env::current_dir().map_err(|e| format!("Path error: {}", e))?;
 
-
-    // 2- Safely jump up TWO folders, then into the python engine folder
+    // Safely jump up TWO folders, then into the python engine folder
     // note: Rust's .join() automatically uses correct Windows backslashes (\)
     let workspace_dir = current_dir.parent().unwrap().parent().unwrap(); // two jumps
     let engine_dir = workspace_dir.join("mediscan-py-engine");
 
-    
-    // 3- the absolute path to the Python executable
     let python_exe = engine_dir.join(".venv").join("Scripts").join("python.exe");
 
-    // 1- terminal command for python\
-    // python pipeline.py path1 path2 <- the command
-    let output = Command::new(python_exe)
-        .current_dir(&engine_dir) // so python can execute code inside its own folder and not jump around
-        .arg("pipeline.py") // to pass one single sring
-        .args(file_paths) // to pass multiple strings
-        .output() //runs the command and waits for python to finish
-        .map_err(|e| format!("Failed to execute Python code: {}", e))?;
+    // 2- Process the images
+    let mut child = Command::new(python_exe)
+        .current_dir(&engine_dir)
+        .arg("pipeline.py")
+        .args(file_paths)
+        .stdout(Stdio::piped()) // this opens a live pipe to python's output
+        .stderr(Stdio::piped())
+        .spawn() // starts the script in the background
+        .map_err(|e| format!("Failed to start Python: {}", e))?;
 
-    // 2- listen to python output
-    let stdout: String = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr: String = String::from_utf8_lossy(&output.stderr).to_string();
+    // 3- Listen to python's live output 
+    let stdout = child.stdout.take().expect("Failed to grab stdout");
+    let reader = BufReader::new(stdout);
 
-    // 3- handle python output
-    if stdout.contains("===MEDISCAN_SUCCESS===") {
+    
+    let mut final_excel_path = String::new();
+    let mut error_log = String::new();
 
-        // splits the string to extract just the Excel file path
-        let parts: Vec<&str> = stdout.split("===").collect();
-        if parts.len() >= 3 {
-            let excel_path = parts[2].to_string();
-            return Ok(excel_path);
+    // 4- handle python outputs
+    for line in reader.lines() {
+        if let Ok(line_str) = line {
+
+            // If it's a progress update, it sends to react loaderModal
+            if line_str.contains("===PROGRESS===") {
+                let parts: Vec<&str> = line_str.split("===").collect();
+                if parts.len() >= 3 {
+                    let progress_msg = parts[2].to_string();
+                    // This uses the Emitter trait to send the message to the frontend!
+                    let _ = app.emit("scan-progress", progress_msg);
+                }
+            }
+
+            // if it's a final success message, it saves the path
+            else if line_str.contains("===MEDISCAN_SUCCESS===") {
+                let parts: Vec<&str> = line_str.split("===").collect();
+                if parts.len() >= 3 {
+                    final_excel_path = parts[2].to_string();
+                }
+            }
+
+            else if line_str.contains("===MEDISCAN_ERROR===") {
+                error_log.push_str(&line_str);
+            }
         }
+
     }
 
-    Err(format!("Python AI Error:\nOutput: {}\nError: {}", stdout, stderr))
+    let _ = child.wait(); // waits for the script to finish
+
+    // 6- Return the final result
+    if !final_excel_path.is_empty() {
+        Ok(final_excel_path)
+    } else {
+        Err(format!("Python Engine Failed:\n{}", error_log))
+    }
 }
 
 

@@ -184,9 +184,10 @@ if __name__ == "__main__":
         reader = easyocr.Reader(['en', 'ar'], gpu=True)
 
         all_patient_data = []
+        total_images = len(image_paths)
 
         # 3- Process all image paths
-        for path in image_paths:
+        for index, path in enumerate(image_paths, 1):
             if not os.path.exists(path):
                 continue
 
@@ -203,6 +204,15 @@ if __name__ == "__main__":
 
             if image_array is None:
                 continue
+            
+            # ---------- NOTE --------------
+            # flush=True the string will be immediately output to the terminal (flushed). 
+            # When set to False (as is automatic), 
+            # the printing of the string will go to a waiting line in the buffer and be executed at a time determined by the file
+            # If it's doing heavy YOLO math, it will hold onto the print statements in memory 
+            # and spit them all out at the very end to save energy
+
+            print(f"===PROGRESS===Scanning image {index} out of {total_images}...", flush=True)
 
             sheet_result = process_sheet(image_array, hunter, surgeon, reader, filename)
             all_patient_data.extend(sheet_result)

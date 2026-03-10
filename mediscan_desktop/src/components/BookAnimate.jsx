@@ -1,7 +1,7 @@
 import './LoaderModel.css'
 import React from "react";
 
-const BookAnimate = () => {
+const BookAnimate = ({ progressText }) => {
   return (
     <>
       {/* The CSS Book animation,  you can find the animation on https://uiverse.io/Nawsome/curly-goose-54 */}
@@ -24,7 +24,7 @@ const BookAnimate = () => {
       
       {/* Text below animation */}
       <h3 className="mt-8 text-xl font-semibold text-gray-700 animate-pulse">
-        Scanning Patients...
+        {progressText}
       </h3>
     
     </>
