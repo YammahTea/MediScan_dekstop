@@ -3,6 +3,9 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader}; // for reading line by line
 use tauri::Emitter;
 use std::env;
+use bcrypt::{hash, verify, DEFAULT_COST};
+use serde_json::{json, Value};
+use std::fs;
 
 // remember: this macro exposes the function to the React frontend
 #[tauri::command]
@@ -177,12 +180,80 @@ fn open_results_folder(folder_name: String) -> Result<String, String> {
 }
 
 
+// HELPER FUNCTION
+fn get_config_path() -> Result<std::path::PathBuf, String> {
+
+    let app_data = env::var("APPDATA").map_err(|e| format!("APPDATA error: {}", e))?;
+    let config_dir = std::path::Path::new(&app_data).join("MediScan");
+
+    // creates the folder if it doesnt exist
+    fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+
+    Ok(config_dir.join("security.json"))
+}
+
+
+// to check if app is locked
+#[tauri::command]
+fn is_password_set() -> bool {
+    let path = get_config_path().unwrap_or_default();
+    path.exists() // returns true if security.json exists
+}
+
+// for first time password setup
+#[tauri::command]
+fn set_first_password(password: String) -> Result<String, String> {
+    let path = get_config_path()?;
+
+    let hashed_password = hash(&password, DEFAULT_COST).map_err(|e| format!("Hashing failed: {}", e))?;
+
+    let config_data = json!({
+        "master_hash": hashed_password
+    });
+
+    // saves the gibberish to the hidden AppData folder
+    fs::write(path, config_data.to_string()).map_err(|e| e.to_string())?;
+    
+    Ok("Secured.".to_string())
+}
+
+
+// Login attempt 
+#[tauri::command]
+fn verify_password(password: String) -> Result<bool, String> {
+    let path = get_config_path()?;
+    
+    if !path.exists() {
+        return Err("No password set yet!".to_string());
+    }
+
+    // 1- Read the JSON file
+    let file_contents = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let config: Value = serde_json::from_str(&file_contents).map_err(|e| e.to_string())?;
+
+    // 2- Extract the hash and compare it to what the user typed
+    if let Some(saved_hash) = config["master_hash"].as_str() {
+        let is_valid = verify(&password, saved_hash).unwrap_or(false);
+        Ok(is_valid)
+
+    } else {
+        Err("Corrupted security file".to_string())
+    }
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()) 
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_file_picker, process_images, merge_files, open_results_folder]) // dont forget this, add the functions
+        .invoke_handler(tauri::generate_handler![open_file_picker, 
+            process_images, 
+            merge_files, 
+            open_results_folder,
+            is_password_set,
+            set_first_password,
+            verify_password]) // dont forget this, add the functions
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

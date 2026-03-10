@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 import Toast from "../components/Toast.jsx"
 import FloatingMenu from '../components/FloatingMenu';
@@ -22,6 +23,23 @@ const Profile = () => {
     setMessageType(null);
   }
   
+  const handleOpenFolder = async (folder_name) => {
+    try {
+
+      if (folder_name === "scan") {
+        await invoke('open_results_folder', { folderName : folder_name });
+      }
+      
+      if (folder_name === "merge") {
+        await invoke('open_results_folder', { folderName : folder_name });
+      }
+      
+    } catch (err) {
+      alert(`Could not open folder: ${err}`);
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -30,7 +48,7 @@ const Profile = () => {
       </div>
     );
   }
-
+  
     
   // To display the remaining number of requests
   const calculateRequests= profileData.max_requests - profileData.request_count
@@ -88,6 +106,30 @@ const Profile = () => {
             )
           }
         </div>
+        
+        {/* OPEN FOLDER BUTTON FOR SCANNED SHEETS*/}
+        <button
+          onClick={() => handleOpenFolder("scan")}
+          className="w-full bg-blue-100 text-blue-700 font-medium py-3 rounded-xl mb-3 hover:bg-blue-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+          </svg>
+          Open Scanned Results Folder
+        </button> 
+
+        
+        {/* OPEN FOLDER BUTTON FOR MERGED SHEETS*/}
+        <button
+          onClick={() => handleOpenFolder("merge")}
+          className="w-full bg-green-100 text-green-700 font-medium py-3 rounded-xl mb-3 hover:bg-blue-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+          </svg>
+          Open Merged Results Folder
+        </button> 
+        
         
         <button
           onClick={logout}

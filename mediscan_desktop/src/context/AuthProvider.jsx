@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 const AuthContext = createContext(undefined);
 
@@ -14,27 +15,72 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   
-  // just a fake token for now to bypass the login screen
-  const [token, setToken] = useState('local-session'); 
+  const [token, setToken] = useState(null); 
   const [loading, setLoading] = useState(false);
+  const [hasPassword, setHasPassword] = useState(true);
 
 
-  // 1- login function
-  const login = async (username, password) => {
+  // to check if the app is already setup when it first loads
+  useEffect(() => {
+    const checkVaultStatus = async () => {
+      try {
+        const isSet = await invoke('is_password_set');
+        setHasPassword(isSet);
 
-    // TODO: make rust  check if the local password is correct
-    setToken('local-session');
+      } catch (err) {
+        console.error("Failed to check vault status:", err);
 
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkVaultStatus();
+  }, []);
   
-  // 2- logout function
+
+  // for first time login
+  const setupVault = async (password) => {
+    try {
+      
+      await invoke('set_first_password', { password });
+      setHasPassword(true);
+      setToken('local-session'); // to instantly log the user in after setting up password
+
+      return { success: true };
+
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  };
+
+  // FUNCTION FOR: Login
+  const login = async (password) => {
+    try {
+      const isValid = await invoke('verify_password', { password });
+
+      if (isValid) {
+        setToken('local-session');
+        return { success: true };
+
+      } else {
+        return { success: false, error: "Incorrect master password." };
+      }
+
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  };
+
+  // FUNCTION FOR: logout
   const logout = async () => {
-      setToken(null);
+    setToken(null);
   };
   
+  
+
   return (
-    <AuthContext.Provider value={{ token, login, logout, loading }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ token, hasPassword, login, setupVault, logout, loading }}>
+        {!loading && children}
     </AuthContext.Provider>
   );
 };
