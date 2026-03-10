@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import Toast from "../components/Toast.jsx"
 import FloatingMenu from '../components/FloatingMenu';
 
+import { invoke } from '@tauri-apps/api/core';
+
 // icons
 const ExcelIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30px">
@@ -53,41 +55,50 @@ const Tools = () => {
     }
   }, [cooldownTimer]); // used to disable components
   
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const existingNames = selectedFiles.map(f => f.name);
-    
-    // filter duplicates
-    const newFiles = files.filter(file => {
-      if (existingNames.includes(file.name)) {
-        setErrorMessage(`Duplicate skipped: ${file.name}`);
-        setMessageType("warn");
-        return false;
-      }
+
+
+
+  const handleBrowseClick = async () => {
+    try {
       
-      // checks for excel extension
-      if (!file.name.match(/\.(xlsx|xls)$/)) {
-        setErrorMessage("Only Excel files (.xlsx) allowed!");
+      // open the Windows Excel picker
+      const filePaths = await invoke('open_file_picker', { fileType: "Excel" });
+      
+      if (!filePaths || filePaths.length === 0) return;
+
+      const existingNames = selectedFiles.map(f => f.name);
+      const newFiles = [];
+
+      for (const path of filePaths) {
+        const name = path.split(/[/\\]/).pop();
+
+        if (existingNames.includes(name)) {
+          setErrorMessage(`Duplicate skipped: ${name}`);
+          setMessageType("warn");
+          continue;
+        }
+
+        newFiles.push({
+          file: path, // WINDOWS PATH
+          name: name,
+          size: "Local File",
+          id: Math.random().toString(36).substr(2, 9)
+        });
+      }
+
+      if (selectedFiles.length + newFiles.length > 10) {
+        setErrorMessage("Max 10 files allowed");
         setMessageType("error");
-        return false;
+        return;
       }
-      return true;
-      
-    }).map(file => ({
-      file,
-      name: file.name,
-      size: (file.size / 1024).toFixed(2) + " KB",
-      id: Math.random().toString(36).substr(2, 9)
-    }));
-    
-    // Add to list
-    if (selectedFiles.length + newFiles.length > 10) {
-      setErrorMessage("Max 10 files allowed");
+
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+
+    } catch (err) {
+      setErrorMessage(`Failed to open picker: ${err}`);
       setMessageType("error");
-      return;
     }
-    
-    setSelectedFiles(prev => [...prev, ...newFiles]);
+
   };
   
   const handleRemoveFile = (id) => {
@@ -109,19 +120,22 @@ const Tools = () => {
     setErrorMessage(null);
     setMessageType(null);
     
-    const formData = new FormData();
-    for (let i=0; i<selectedFiles.length; i++) {
-      formData.append("files", selectedFiles[i].file);
-    }
+    const excelFilesPaths = selectedFiles.map(obj => obj.file);
     
     try {
       // TODO: invoke('merge_excel_files', { files: selectedFiles })
-      await new Promise(r => setTimeout(r, 2000)); // Temp delay
+      const result = await invoke('merge_files', { filePaths : excelFilesPaths })
+
+      if (result) {
+        alert(`File has been saved to ${result}`)
+      }
       
       setCooldownTimer(5);
       
     } catch (errs) {
-      setErrorMessage("Merge failed");
+      console.error("Rust Backend Error:", errs); // temp
+      
+      setErrorMessage(`Scan failed: ${errs}`);
       setMessageType("error");
       setCooldownTimer(5);
       
@@ -159,15 +173,17 @@ const Tools = () => {
         <div className="p-8">
           
           {/* DRAG AND DROP */}
-          <label className="border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center p-8 group">
-            <input type="file" multiple accept=".xlsx, .xls" className="hidden" onChange={handleFileChange} />
-            
+          <button 
+            type="button"
+            onClick={handleBrowseClick}
+            className="w-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center p-8 group"
+          >
             <div className="group-hover:scale-110 transition-transform duration-300">
               <FileStackIcon />
             </div>
-            <p className="text-gray-500 font-medium group-hover:text-blue-600">Click to Browse or Drag Files</p>
+            <p className="text-gray-500 font-medium group-hover:text-blue-600">Click to Browse Files</p>
             <p className="text-xs text-gray-400 mt-2">Supports .xlsx and .xls</p>
-          </label>
+          </button>
           
           {/* FILE LIST AREA */}
           <div className="mt-6">

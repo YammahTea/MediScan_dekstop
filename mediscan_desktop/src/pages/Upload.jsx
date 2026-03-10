@@ -59,7 +59,7 @@ const Upload = () => {
     
     try {
       // 1- open file picker
-      const filePaths = await invoke('open_file_picker');
+      const filePaths = await invoke('open_file_picker', { fileType : "Images" });
 
       // 2- check if user clicked 'cancel'
       if (!filePaths || filePaths.length === 0) { return };
