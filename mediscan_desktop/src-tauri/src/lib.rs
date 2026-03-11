@@ -113,7 +113,7 @@ async fn process_images(app: tauri::AppHandle, file_paths: Vec<String>) -> Resul
 
 
 #[tauri::command]
-async fn merge_files(file_paths: Vec<String>) -> Result<String, String> {
+async fn merge_files(app: tauri::Apphandler, file_paths: Vec<String>) -> Result<String, String> {
 
     // 1- Find the hidden resource directory  
     let resource_dir = app.path().resource_dir().map_err(|e| format!("Failed to find resources: {}", e))?;
