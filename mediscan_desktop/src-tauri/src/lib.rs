@@ -202,12 +202,13 @@ fn is_password_set() -> bool {
 
 // for first time password setup
 #[tauri::command]
-fn set_first_password(password: String) -> Result<String, String> {
+fn set_first_password(username: String, password: String) -> Result<String, String> {
     let path = get_config_path()?;
 
     let hashed_password = hash(&password, DEFAULT_COST).map_err(|e| format!("Hashing failed: {}", e))?;
 
     let config_data = json!({
+        "username": username,
         "master_hash": hashed_password
     });
 
@@ -220,21 +221,32 @@ fn set_first_password(password: String) -> Result<String, String> {
 
 // Login attempt 
 #[tauri::command]
-fn verify_password(password: String) -> Result<bool, String> {
+fn verify_user_credentials(username: String, password: String) -> Result<String, String> {
     let path = get_config_path()?;
     
     if !path.exists() {
-        return Err("No password set yet!".to_string());
+        return Err("No user set yet!".to_string());
     }
 
     // 1- Read the JSON file
     let file_contents = fs::read_to_string(path).map_err(|e| e.to_string())?;
     let config: Value = serde_json::from_str(&file_contents).map_err(|e| e.to_string())?;
 
-    // 2- Extract the hash and compare it to what the user typed
+    // 2- Verify username
+    let saved_user = config["username"].as_str().unwrap_or("");
+    if saved_user != username {
+        return Err("Incorrect username or password.".to_string());
+    }
+
+    // 3- Verify the user password
     if let Some(saved_hash) = config["master_hash"].as_str() {
         let is_valid = verify(&password, saved_hash).unwrap_or(false);
-        Ok(is_valid)
+        if is_valid {
+            Ok(saved_user.to_string()) // to send to the frontend for username display
+        }
+        else {
+            Err("Incorrect username or password".to_string())
+        }
 
     } else {
         Err("Corrupted security file".to_string())
@@ -253,7 +265,7 @@ pub fn run() {
             open_results_folder,
             is_password_set,
             set_first_password,
-            verify_password]) // dont forget this, add the functions
+            verify_user_credentials]) // dont forget this, add the functions
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

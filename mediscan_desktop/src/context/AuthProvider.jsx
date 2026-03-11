@@ -19,6 +19,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [hasPassword, setHasPassword] = useState(true);
 
+  const [currentUser, setCurrentUser] = useState("Doctor");
+
 
   // to check if the app is already setup when it first loads
   useEffect(() => {
@@ -39,11 +41,12 @@ export const AuthProvider = ({ children }) => {
   
 
   // for first time login
-  const setupVault = async (password) => {
+  const setupVault = async (username, password) => {
     try {
       
-      await invoke('set_first_password', { password });
+      await invoke('set_first_password', { username, password });
       setHasPassword(true);
+      setCurrentUser(username);
       setToken('local-session'); // to instantly log the user in after setting up password
 
       return { success: true };
@@ -54,16 +57,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   // FUNCTION FOR: Login
-  const login = async (password) => {
+  const login = async (username, password) => {
     try {
-      const isValid = await invoke('verify_password', { password });
+      const returnedUsername = await invoke('verify_user_credentials', { username, password });
 
-      if (isValid) {
+      if (returnedUsername) {
+        setCurrentUser(returnedUsername);
         setToken('local-session');
         return { success: true };
 
       } else {
-        return { success: false, error: "Incorrect master password." };
+        return { success: false, error: "Incorrect username or password." };
       }
 
     } catch (err) {
@@ -74,12 +78,13 @@ export const AuthProvider = ({ children }) => {
   // FUNCTION FOR: logout
   const logout = async () => {
     setToken(null);
+    setCurrentUser("Doctor");
   };
   
   
 
   return (
-    <AuthContext.Provider value={{ token, hasPassword, login, setupVault, logout, loading }}>
+    <AuthContext.Provider value={{ token, hasPassword, login, setupVault, logout, loading, currentUser }}>
         {!loading && children}
     </AuthContext.Provider>
   );

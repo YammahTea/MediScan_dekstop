@@ -30,12 +30,12 @@ function LoginScreen() {
     e.preventDefault(); // so clicking 'enter' works
     
     if (!hasPassword) {
-      const result = await setupVault(password);
+      const result = await setupVault(username, password);
       if (!result.success) alert(result.error); // Show error if setup fails
     } 
     
     else {
-      const result = await login(password);
+      const result = await login(username, password);
       if (!result.success) alert(result.error); // Show error if wrong password
     }
 
@@ -64,7 +64,7 @@ function LoginScreen() {
           
           <p className="form-sub-title">
             {!hasPassword ? (
-              'Welcome to MediScan. Please create a local master password to securely lock your patient data on this device.'
+              'Welcome to MediScan. Please create a local master user to securely lock your patient data on this device.'
             ) : showRegister ? (
                 <>
                   This is an invite only website, please contact the{' '}
@@ -88,7 +88,7 @@ function LoginScreen() {
                        onChange={(e) => setUsername(e.target.value)}
                        required
                        minLength={5}/>
-                <span className="placeholder">Username or email</span>
+                <span className="placeholder">Username</span>
               </div>
 
               <div className="field-container">

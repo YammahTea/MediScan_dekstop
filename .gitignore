@@ -2,6 +2,8 @@ mediscan-py-engine/models/
 mediscan-py-engine/venv/
 mediscan-py-engine/.venv
 mediscan-py-engine/__pycache__
+mediscan-py-engine/build/
+mediscan-py-engine/*.spec
 
 *.pt
 .vscode
