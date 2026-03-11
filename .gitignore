@@ -6,6 +6,8 @@ mediscan-py-engine/build/
 mediscan-py-engine/*.spec
 mediscan-py-engine/dist/
 
+mediscan_desktop/src-tauri/yolo_engine
+
 *.pt
 .vscode
 

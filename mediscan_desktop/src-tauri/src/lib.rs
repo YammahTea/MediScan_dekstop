@@ -1,7 +1,8 @@
 use tauri_plugin_dialog::DialogExt;
+use tauri::Manager; // allows Rust to find the hidden resource folders
+use tauri::Emitter;
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader}; // for reading line by line
-use tauri::Emitter;
 use std::env;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use serde_json::{json, Value};
@@ -47,27 +48,21 @@ async fn open_file_picker(app: tauri::AppHandle, file_type: String) -> Result<Ve
 // result is the message in "pipeline.py", the save file happens inside pipeline.py
 async fn process_images(app: tauri::AppHandle, file_paths: Vec<String>) -> Result<String, String> {
 
-    // 1- Get the directories  
-    // THIS TO AVOID WINDOWS BS WITH  BACKSLASHES 
-    // Gets the current absolute directory (mediscan-desktop)
-    let current_dir = env::current_dir().map_err(|e| format!("Path error: {}", e))?;
-
-    // Safely jump up TWO folders, then into the python engine folder
-    // note: Rust's .join() automatically uses correct Windows backslashes (\)
-    let workspace_dir = current_dir.parent().unwrap().parent().unwrap(); // two jumps
-    let engine_dir = workspace_dir.join("mediscan-py-engine");
-
-    let python_exe = engine_dir.join(".venv").join("Scripts").join("python.exe");
+    // 1- Find the hidden resource directory  
+    let resource_dir = app.path().resource_dir().map_err(|e| format!("Failed to find resources: {}", e))?;
+    let engine_dir = resource_dir.join("yolo_engine");
+    
+    // 2- Point directly to the standalone .exe!
+    let pipeline_exe = engine_dir.join("pipeline.exe");
 
     // 2- Process the images
-    let mut child = Command::new(python_exe)
+    let mut child = Command::new(&pipeline_exe)
         .current_dir(&engine_dir)
-        .arg("pipeline.py")
         .args(file_paths)
         .stdout(Stdio::piped()) // this opens a live pipe to python's output
         .stderr(Stdio::piped())
         .spawn() // starts the script in the background
-        .map_err(|e| format!("Failed to start Python: {}", e))?;
+        .map_err(|e| format!("Failed to start YOLO engine: {}", e))?;
 
     // 3- Listen to python's live output 
     let stdout = child.stdout.take().expect("Failed to grab stdout");
@@ -112,7 +107,7 @@ async fn process_images(app: tauri::AppHandle, file_paths: Vec<String>) -> Resul
     if !final_excel_path.is_empty() {
         Ok(final_excel_path)
     } else {
-        Err(format!("Python Engine Failed:\n{}", error_log))
+        Err(format!("YOLO Engine Failed:\n{}", error_log))
     }
 }
 
@@ -120,21 +115,17 @@ async fn process_images(app: tauri::AppHandle, file_paths: Vec<String>) -> Resul
 #[tauri::command]
 async fn merge_files(file_paths: Vec<String>) -> Result<String, String> {
 
-    // 1- Run python script 
-    let current_dir = env::current_dir().map_err(|e| format!("Path error: {}", e))?;
-
-    let workspace_dir = current_dir.parent().unwrap().parent().unwrap();
-    let engine_dir = workspace_dir.join("mediscan-py-engine");
-
-    let python_exe = engine_dir.join(".venv").join("Scripts").join("python.exe");
+    // 1- Find the hidden resource directory  
+    let resource_dir = app.path().resource_dir().map_err(|e| format!("Failed to find resources: {}", e))?;
+    let engine_dir = resource_dir.join("ai_engine");
+    let merge_exe = engine_dir.join("merge_tools.exe");
 
 
-    let output = Command::new(python_exe)
+    let output = Command::new(&merge_exe)
         .current_dir(&engine_dir) 
-        .arg("merge_tools.py")
         .args(file_paths)
         .output()
-        .map_err(|e| format!("Failed to execute Python code: {}", e))?;
+        .map_err(|e| format!("Failed to execute Merge tool: {}", e))?;
 
     // 2- listen to python output
     let stdout: String = String::from_utf8_lossy(&output.stdout).to_string();
@@ -151,7 +142,7 @@ async fn merge_files(file_paths: Vec<String>) -> Result<String, String> {
         }
     }
 
-    Err(format!("Python AI Error:\nOutput: {}\nError: {}", stdout, stderr))
+    Err(format!("Merge tool Error:\nOutput: {}\nError: {}", stdout, stderr))
 }
 
 
