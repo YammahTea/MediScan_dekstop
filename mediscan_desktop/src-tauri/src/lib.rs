@@ -117,7 +117,7 @@ async fn merge_files(app: tauri::AppHandle, file_paths: Vec<String>) -> Result<S
 
     // 1- Find the hidden resource directory  
     let resource_dir = app.path().resource_dir().map_err(|e| format!("Failed to find resources: {}", e))?;
-    let engine_dir = resource_dir.join("ai_engine");
+    let engine_dir = resource_dir.join("yolo_engine");
     let merge_exe = engine_dir.join("merge_tools.exe");
 
 
