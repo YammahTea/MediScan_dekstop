@@ -4,6 +4,7 @@ mediscan-py-engine/.venv
 mediscan-py-engine/__pycache__
 mediscan-py-engine/build/
 mediscan-py-engine/*.spec
+mediscan-py-engine/dist/
 
 *.pt
 .vscode
